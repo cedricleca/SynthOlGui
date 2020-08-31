@@ -1,0 +1,6 @@
+[submodule "imgui"]
+	path = imgui
+	url = https://github.com/ocornut/imgui
+[submodule "SynthOl"]
+	path = SynthOl
+	url = https://github.com/cedricleca/SynthOl
