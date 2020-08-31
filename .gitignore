@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+.vs/*
+*.db
+*.suo
+*.ipch
+*.db
