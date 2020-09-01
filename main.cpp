@@ -57,19 +57,19 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 	const ImU32 col32text = ImGui::GetColorU32(ImGuiCol_Text);
 	ImDrawList* draw_list = ImGui::GetWindowDrawList();
 	
-	auto PointOnRadius = [radius, center](float angle) -> ImVec2 
+	auto PointOnRadius = [center](float angle, float rad) -> ImVec2 
 	{
-		return {-sinf(angle)*radius + center.x, cosf(angle)*radius + center.y};
+		return {-sinf(angle)*rad + center.x, cosf(angle)*rad + center.y};
 	};
 
 	float th = gamma;
 	const float step = (gamma - alpha) / float(NbSegments);
-	for(int i = 1; i < 17; i++, th -= step)
-		draw_list->AddLine(PointOnRadius(th), PointOnRadius(th-step+.02f), ImGui::GetColorU32(ImVec4(.8f, .2f, .1f, 1.f)), 5);
+	for(int i = 1; i < NbSegments+1; i++, th -= step)
+		draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th-step+.02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.8f, .3f, .2f, 1.f)), 4);
 
 	draw_list->AddCircleFilled(center, radius, col32, NbSegments);
 
-	const ImVec2 CursotTip = PointOnRadius(alpha);
+	const ImVec2 CursotTip = PointOnRadius(alpha, radius);
 	draw_list->AddLine({.5f * (center.x + CursotTip.x), .5f * (center.y + CursotTip.y)}, CursotTip, col32line, 3);
 	
 	ImVec2 TSize = ImGui::CalcTextSize(label);
@@ -111,7 +111,6 @@ int main(int, char**)
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd);
@@ -125,12 +124,9 @@ int main(int, char**)
     // - Read 'docs/FONTS.md' for more instructions and details.
     // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
     //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    ImFont * LUCONFont = io.Fonts->AddFontFromFileTTF("LUCON.TTF", 12.0f);
     //IM_ASSERT(font != NULL);
+
 
     // Our state
     bool show_demo_window = true;
@@ -158,6 +154,7 @@ int main(int, char**)
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+        ImGui::PushFont(LUCONFont);
 
         {
             static float f = 0.0f;
@@ -165,6 +162,7 @@ int main(int, char**)
 
             ImGui::SetNextWindowSize({WSizeW, WSizeH});
             ImGui::SetNextWindowPos({0.f, 0.f});
+
             bool bDummy = false;
             ImGui::Begin("Hello, world!", &bDummy, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);                          // Create a window called "Hello, world!" and append into it.
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
@@ -180,13 +178,15 @@ int main(int, char**)
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
             ImGui::SameLine();            
-            Knob("Morph", f, 0.f, 1.f);     ImGui::SameLine();
+            Knob("Morph", f, 0.f, 1.f, 80.f, 32);     ImGui::SameLine();
             Knob("Volume", f, 0.f, 1.f);    ImGui::SameLine();
             Knob("Mix", f, 0.f, 1.f);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
+
+        ImGui::PopFont();
 
         // Rendering
         ImGui::Render();
