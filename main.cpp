@@ -11,6 +11,7 @@
 #include <string>
 #include <algorithm>
 #include <math.h>
+#include "DSoundTools.h"
 
 // Data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -62,10 +63,13 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 		return {-sinf(angle)*rad + center.x, cosf(angle)*rad + center.y};
 	};
 
-	float th = gamma;
-	const float step = (gamma - alpha) / float(NbSegments);
-	for(int i = 1; i < NbSegments+1; i++, th -= step)
-		draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th-step+.02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.8f, .3f, .2f, 1.f)), 4);
+	if(value > 0.f)
+    {
+        float th = gamma;
+	    const float step = (alpha - gamma) / float(NbSegments);
+	    for(int i = 0; i < NbSegments; i++, th += step)
+		    draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th + step + .02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.8f, .3f, .2f, 1.f)), 4);
+    }
 
 	draw_list->AddCircleFilled(center, radius, col32, NbSegments);
 
@@ -97,6 +101,8 @@ int main(int, char**)
         ::UnregisterClass(wc.lpszClassName, wc.hInstance);
         return 1;
     }
+
+	DSoundTools::Init(hwnd);
 
     // Show the window
     ::ShowWindow(hwnd, SW_SHOWDEFAULT);
@@ -157,7 +163,7 @@ int main(int, char**)
         ImGui::PushFont(LUCONFont);
 
         {
-            static float f = 0.0f;
+            static float MasterVolume = 0.0f;
             static int counter = 0;
 
             ImGui::SetNextWindowSize({WSizeW, WSizeH});
@@ -169,26 +175,23 @@ int main(int, char**)
             ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
             ImGui::Checkbox("Another Window", &show_another_window);
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::SliderFloat("float", &MasterVolume, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
 
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-            ImGui::SameLine();            
-            Knob("Morph", f, 0.f, 1.f, 80.f, 32);     ImGui::SameLine();
-            Knob("Volume", f, 0.f, 1.f);    ImGui::SameLine();
-            Knob("Mix", f, 0.f, 1.f);
+            ImGui::SameLine(); ImGui::Text("counter = %d", counter);
+            ImGui::SameLine(); Knob("Master Volume", MasterVolume, 0.f, 1.f, 80.f, 32);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
+
+		    DSoundTools::Render(MasterVolume);
         }
 
-        ImGui::PopFont();
-
         // Rendering
+        ImGui::PopFont();
         ImGui::Render();
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, (float*)&clear_color);
@@ -199,6 +202,8 @@ int main(int, char**)
     }
 
     // Cleanup
+	DSoundTools::Release();
+
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();

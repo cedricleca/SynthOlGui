@@ -27,6 +27,9 @@
     <ClInclude Include="imgui_impl_win32.h">
       <Filter>sources\Dx11Impl</Filter>
     </ClInclude>
+    <ClInclude Include="DSoundTools.h">
+      <Filter>sources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -49,6 +52,9 @@
     </ClCompile>
     <ClCompile Include="imgui_impl_win32.cpp">
       <Filter>sources\Dx11Impl</Filter>
+    </ClCompile>
+    <ClCompile Include="DSoundTools.cpp">
+      <Filter>sources</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
