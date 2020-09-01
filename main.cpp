@@ -8,6 +8,9 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <tchar.h>
+#include <string>
+#include <algorithm>
+#include <math.h>
 
 // Data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -22,14 +25,70 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+static const int WPosX = 100;
+static const int WPosY = 100;
+static const int WSizeW = 900;
+static const int WSizeH = 400;
+static const float PI = 3.1415926f;
+
+bool Knob(const char * label, float & value, float minv, float maxv, float Size = 36.f, int NbSegments = 16)
+{	
+	const ImGuiStyle& style = ImGui::GetStyle();
+	
+	const ImVec2 CursorPos = ImGui::GetCursorScreenPos();
+	float radius = Size*0.5f;
+	const ImVec2 center {CursorPos.x + radius, CursorPos.y + radius};	
+	const float gamma = PI / 4.0f;
+	const float val1 = (value - minv) / (maxv - minv);
+	const float alpha = (PI - gamma) * val1 * 2.0f + gamma;
+	
+	ImGui::InvisibleButton(label, {Size, Size + ImGui::GetTextLineHeight() + style.ItemInnerSpacing.y});
+
+	const bool is_active = ImGui::IsItemActive();	
+	if(is_active)
+	{		
+		const ImVec2 mp = ImGui::GetIO().MousePos;
+		const float alpha2 = std::clamp(atan2f(mp.x - center.x, center.y - mp.y) + PI, gamma, 2.0f * PI - gamma);
+		value = (0.5f * (alpha2 - gamma) / (PI - gamma)) * (maxv - minv) + minv;
+	}
+	
+	const ImU32 col32 = ImGui::GetColorU32(is_active ? ImGuiCol_FrameBgActive : ImGui::IsItemHovered() ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+	const ImU32 col32line = ImGui::GetColorU32(ImGuiCol_SliderGrabActive); 
+	const ImU32 col32text = ImGui::GetColorU32(ImGuiCol_Text);
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+	
+	auto PointOnRadius = [radius, center](float angle) -> ImVec2 
+	{
+		return {-sinf(angle)*radius + center.x, cosf(angle)*radius + center.y};
+	};
+
+	float th = gamma;
+	const float step = (gamma - alpha) / float(NbSegments);
+	for(int i = 1; i < 17; i++, th -= step)
+		draw_list->AddLine(PointOnRadius(th), PointOnRadius(th-step+.02f), ImGui::GetColorU32(ImVec4(.8f, .2f, .1f, 1.f)), 5);
+
+	draw_list->AddCircleFilled(center, radius, col32, NbSegments);
+
+	const ImVec2 CursotTip = PointOnRadius(alpha);
+	draw_list->AddLine({.5f * (center.x + CursotTip.x), .5f * (center.y + CursotTip.y)}, CursotTip, col32line, 3);
+	
+	ImVec2 TSize = ImGui::CalcTextSize(label);
+	draw_list->AddText({CursorPos.x + .5f*(Size - TSize.x), CursorPos.y + Size + style.ItemInnerSpacing.y}, col32text, label);
+
+	//if(is_active)
+	//	draw_list->AddText(nullptr, 11.f, CursorPos, col32text, std::to_string(value).c_str());
+	
+	return is_active;
+}
+
 // Main code
 int main(int, char**)
 {
     // Create application window
     //ImGui_ImplWin32_EnableDpiAwareness();
-    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
+    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ShyntOlGui"), NULL };
     ::RegisterClassEx(&wc);
-    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Dear ImGui DirectX11 Example"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("SynthOlGui Window"), WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU, WPosX, WPosY, WPosX + WSizeW, WPosY + WSizeH, NULL, NULL, wc.hInstance, NULL);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -76,7 +135,7 @@ int main(int, char**)
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.145f, 0.155f, 0.160f, 1.00f);
 
     // Main loop
     MSG msg;
@@ -100,17 +159,14 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
             static float f = 0.0f;
             static int counter = 0;
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
+            ImGui::SetNextWindowSize({WSizeW, WSizeH});
+            ImGui::SetNextWindowPos({0.f, 0.f});
+            bool bDummy = false;
+            ImGui::Begin("Hello, world!", &bDummy, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);                          // Create a window called "Hello, world!" and append into it.
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
             ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
             ImGui::Checkbox("Another Window", &show_another_window);
@@ -120,20 +176,15 @@ int main(int, char**)
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
+
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
+            ImGui::SameLine();            
+            Knob("Morph", f, 0.f, 1.f);     ImGui::SameLine();
+            Knob("Volume", f, 0.f, 1.f);    ImGui::SameLine();
+            Knob("Mix", f, 0.f, 1.f);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
             ImGui::End();
         }
 

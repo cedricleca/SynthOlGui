@@ -1,2 +1,0 @@
-F:\Dev\SynthOl\SynthOlGui\Debug\SynthOlGui.exe
-F:\Dev\SynthOl\SynthOlGui\Debug\SynthOlGui.pdb
