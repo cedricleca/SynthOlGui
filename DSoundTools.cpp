@@ -56,11 +56,9 @@ namespace DSoundTools
 	
 		pDSB->Play( 0, 0, DSBPLAY_LOOPING );	
 		OldPlayCursor = 0;
-
-//		Machine.JKev.SetOutputSurface(JKevOutBuf, SO_PRIMARY_BUFFER_SIZE);
 	}
 
-	void Render(float Volume)
+	void Render(SynthOl::Synth & Synth, float Volume)
 	{
 		DWORD PlayCursor, WriteCursor;
 		DWORD BytesToLock;
@@ -77,18 +75,22 @@ namespace DSoundTools
 		pDSB->Lock(OldPlayCursor, BytesToLock, &P[0], &N[0], &P[1], &N[1], 0);
 		OldPlayCursor = PlayCursor;
 
-		N[0] /= 2;
-		N[1] /= 2;
-
-/*
-		for(int a = 0; a < 2; a++)
+		auto Output = [&](int BufIdx) 
 		{
-			short * Buf = (short *)P[a];
-			char Val;
-			for(DWORD i = 0; i < N[a] && Machine.JKev.Pop(Val); i++)
-				Buf[i] = short(float(Val<<8) * Volume);
-		}
-*/
+			N[BufIdx] /= 2;
+			Synth.Render(min(N[BufIdx], 44100));
+			short * Buf = static_cast<short *>(P[BufIdx]);
+			for(DWORD i = 0; i < N[BufIdx];)
+			{	
+				float Left, Right;
+				Synth.PopOutputVal(Left, Right);
+				Buf[i++] = short(Left * 32767.f * Volume);
+				Buf[i++] = short(Right * 32767.f * Volume);
+			}
+		};
+
+		Output(0);
+		Output(1);
 
 		pDSB->Unlock(P[0], N[0], P[1], N[1]);
 	}

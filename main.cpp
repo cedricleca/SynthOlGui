@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <math.h>
 #include "DSoundTools.h"
+#include "SynthOl/SynthOl.h"
 
 // Data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -63,15 +64,18 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 		return {-sinf(angle)*rad + center.x, cosf(angle)*rad + center.y};
 	};
 
-	if(value > 0.f)
+    if(value > 0.f)
     {
         float th = gamma;
 	    const float step = (alpha - gamma) / float(NbSegments);
 	    for(int i = 0; i < NbSegments; i++, th += step)
-		    draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th + step + .02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.8f, .3f, .2f, 1.f)), 4);
+		    draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th + step + .02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.6f, .15f, .11f, 1.f)), 4.f);
+        th = gamma;
+	    for(int i = 0; i < NbSegments; i++, th += step)
+		    draw_list->AddLine(PointOnRadius(th, radius + 1.f), PointOnRadius(th + step + .02f, radius + 1.f), ImGui::GetColorU32(ImVec4(9.f, .4f, .2f, 1.f)), 2.f);
     }
 
-	draw_list->AddCircleFilled(center, radius, col32, NbSegments);
+    draw_list->AddCircleFilled(center, radius, col32, NbSegments);
 
 	const ImVec2 CursotTip = PointOnRadius(alpha, radius);
 	draw_list->AddLine({.5f * (center.x + CursotTip.x), .5f * (center.y + CursotTip.y)}, CursotTip, col32line, 3);
@@ -102,7 +106,19 @@ int main(int, char**)
         return 1;
     }
 
-	DSoundTools::Init(hwnd);
+	SynthOl::Synth Synth;
+	SynthOl::AnalogSourceData AnalogSourceData;
+    AnalogSourceData.m_LeftVolume = .7f;
+    AnalogSourceData.m_RightVolume = .7f;
+    AnalogSourceData.m_ADSR_Attack = .1f;
+    AnalogSourceData.m_ADSR_Decay = .1f;
+    AnalogSourceData.m_ADSR_Sustain = .7f;
+    AnalogSourceData.m_ADSR_Release = .3f;
+	SynthOl::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
+	Synth.BindSource(AnalogSource);
+    Synth.NoteOn(0, 10, 1.f);
+
+    DSoundTools::Init(hwnd);
 
     // Show the window
     ::ShowWindow(hwnd, SW_SHOWDEFAULT);
@@ -135,8 +151,6 @@ int main(int, char**)
 
 
     // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.145f, 0.155f, 0.160f, 1.00f);
 
     // Main loop
@@ -163,32 +177,60 @@ int main(int, char**)
         ImGui::PushFont(LUCONFont);
 
         {
-            static float MasterVolume = 0.0f;
-            static int counter = 0;
+            static float MasterVolume = .5f;
+//            static int counter = 0;
 
             ImGui::SetNextWindowSize({WSizeW, WSizeH});
             ImGui::SetNextWindowPos({0.f, 0.f});
 
             bool bDummy = false;
-            ImGui::Begin("Hello, world!", &bDummy, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);                          // Create a window called "Hello, world!" and append into it.
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
+            ImGui::Begin("SynthOl", &bDummy, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);                          // Create a window called "Hello, world!" and append into it.
 
-            ImGui::SliderFloat("float", &MasterVolume, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+//            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
+            int Id = 0;
+            auto VSlider = [&Id](float & Val, bool SameLine=true) 
+            {
+                ImGui::PushID(Id++);
+                if(SameLine)
+                    ImGui::SameLine(); 
+                ImGui::VSliderFloat("##v", {10.f, 80.0f}, &Val, 0.0f, 1.0f, "");  
+                ImGui::PopID();
+            };
 
-            ImGui::SameLine(); ImGui::Text("counter = %d", counter);
-            ImGui::SameLine(); Knob("Master Volume", MasterVolume, 0.f, 1.f, 80.f, 32);
+            ImGui::PushID("set1");
 
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            VSlider(AnalogSourceData.m_ADSR_Attack, false);
+            VSlider(AnalogSourceData.m_ADSR_Decay);
+            VSlider(AnalogSourceData.m_ADSR_Sustain);
+            VSlider(AnalogSourceData.m_ADSR_Release);
+           
+            VSlider(AnalogSourceData.m_ADSR_Attack, false);
+            VSlider(AnalogSourceData.m_ADSR_Decay);
+            VSlider(AnalogSourceData.m_ADSR_Sustain);
+            VSlider(AnalogSourceData.m_ADSR_Release);
+           
+            ImGui::PopID();
+
+//            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+//            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+//                counter++;
+
+//            ImGui::SameLine(); ImGui::Text("counter = %d", counter);
+            ImGui::SameLine(); Knob("Pan", AnalogSourceData.m_RightVolume, 0.f, 1.f, 32.f, 16);
+            AnalogSourceData.m_LeftVolume = 1.f-AnalogSourceData.m_RightVolume;
+            ImGui::SameLine(); Knob("Master", MasterVolume, 0.f, 1.f, 45.f, 16);
+            
+
+  //          ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
-		    DSoundTools::Render(MasterVolume);
+		    DSoundTools::Render(Synth, MasterVolume);
         }
+
+        bool ShowDemo = true;
+        ImGui::ShowDemoWindow(&ShowDemo);
 
         // Rendering
         ImGui::PopFont();

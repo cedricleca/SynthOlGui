@@ -1,5 +1,7 @@
 Release/*
 Debug/*
+x64/Release/*
+x64/Debug/*
 
 # Prerequisites
 *.d
@@ -39,3 +41,4 @@ Debug/*
 *.suo
 *.ipch
 *.db
+*.ini
