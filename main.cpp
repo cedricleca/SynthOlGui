@@ -229,8 +229,8 @@ int main(int, char**)
 		    DSoundTools::Render(Synth, MasterVolume);
         }
 
-        bool ShowDemo = true;
-        ImGui::ShowDemoWindow(&ShowDemo);
+//        bool ShowDemo = true;
+//        ImGui::ShowDemoWindow(&ShowDemo);
 
         // Rendering
         ImGui::PopFont();
