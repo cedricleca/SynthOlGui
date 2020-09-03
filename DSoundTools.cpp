@@ -58,7 +58,7 @@ namespace DSoundTools
 		OldPlayCursor = 0;
 	}
 
-	void Render(SynthOl::Synth & Synth, float Volume)
+	void Render(SynthOX::Synth & Synth, float Volume)
 	{
 		DWORD PlayCursor, WriteCursor;
 		DWORD BytesToLock;

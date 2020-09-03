@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <math.h>
 #include "DSoundTools.h"
-#include "SynthOl/SynthOl.h"
+#include "SynthOX/SynthOX.h"
 
 // Data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -106,17 +106,19 @@ int main(int, char**)
         return 1;
     }
 
-	SynthOl::Synth Synth;
-	SynthOl::AnalogSourceData AnalogSourceData;
+	SynthOX::Synth Synth;
+	SynthOX::AnalogSourceData AnalogSourceData;
     AnalogSourceData.m_LeftVolume = .7f;
     AnalogSourceData.m_RightVolume = .7f;
     AnalogSourceData.m_ADSR_Attack = .1f;
     AnalogSourceData.m_ADSR_Decay = .1f;
     AnalogSourceData.m_ADSR_Sustain = .7f;
     AnalogSourceData.m_ADSR_Release = .3f;
-	SynthOl::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
+    AnalogSourceData.m_OscillatorTab[0].m_ModulationType = SynthOX::ModulationType::Mix;
+    AnalogSourceData.m_OscillatorTab[1].m_ModulationType = SynthOX::ModulationType::Mul;
+	SynthOX::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
 	Synth.BindSource(AnalogSource);
-    Synth.NoteOn(0, 10, 1.f);
+    Synth.NoteOn(0, 30, 1.f);
 
     DSoundTools::Init(hwnd);
 
