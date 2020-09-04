@@ -1,10 +1,11 @@
 
 #include "DSoundTools.h"
+#include <assert.h>
 
 namespace DSoundTools
 {
 	static const unsigned int SO_PLAYBACK_FREQ = 44100;
-	static const unsigned int SO_PRIMARY_BUFFER_SIZE = 4 * SO_PLAYBACK_FREQ;
+	static const unsigned int SO_PRIMARY_BUFFER_SIZE = SO_PLAYBACK_FREQ;
 
 	IDirectSound*			g_DS = nullptr;
 	LPDIRECTSOUNDBUFFER		pDSB = nullptr;
@@ -58,34 +59,42 @@ namespace DSoundTools
 		OldPlayCursor = 0;
 	}
 
-	void Render(SynthOX::Synth & Synth, float Volume)
+	void Render(SynthOX::Synth & Synth, float MasterVolume)
 	{
 		DWORD PlayCursor, WriteCursor;
 		DWORD BytesToLock;
 
 		pDSB->GetCurrentPosition(&PlayCursor, &WriteCursor);
 
+		BytesToLock = PlayCursor - OldPlayCursor;
+		if(PlayCursor <= OldPlayCursor)
+			BytesToLock = SO_PRIMARY_BUFFER_SIZE + BytesToLock;
+
+		/*
 		if(PlayCursor > OldPlayCursor)
 			BytesToLock = PlayCursor - OldPlayCursor;
 		else
 			BytesToLock = SO_PRIMARY_BUFFER_SIZE - (OldPlayCursor - PlayCursor);
+			*/
 
 		void *P[2];
 		DWORD N[2];
 		pDSB->Lock(OldPlayCursor, BytesToLock, &P[0], &N[0], &P[1], &N[1], 0);
 		OldPlayCursor = PlayCursor;
 
+		assert(N[0] + N[1] == BytesToLock);
+
 		auto Output = [&](int BufIdx) 
 		{
 			N[BufIdx] /= 2;
-			Synth.Render(min(N[BufIdx], 44100));
+			Synth.Render(min(N[BufIdx]/2, 44100));
 			short * Buf = static_cast<short *>(P[BufIdx]);
-			for(DWORD i = 0; i < N[BufIdx];)
+			for(unsigned int i = 0; i < N[BufIdx];)
 			{	
 				float Left, Right;
 				Synth.PopOutputVal(Left, Right);
-				Buf[i++] = short(Left * 32767.f * Volume);
-				Buf[i++] = short(Right * 32767.f * Volume);
+				Buf[i++] = short(Left * 32767.f * MasterVolume);
+				Buf[i++] = short(Right * 32767.f * MasterVolume);
 			}
 		};
 

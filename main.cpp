@@ -115,10 +115,12 @@ int main(int, char**)
     AnalogSourceData.m_ADSR_Sustain = .7f;
     AnalogSourceData.m_ADSR_Release = .3f;
     AnalogSourceData.m_OscillatorTab[0].m_ModulationType = SynthOX::ModulationType::Mix;
-    AnalogSourceData.m_OscillatorTab[1].m_ModulationType = SynthOX::ModulationType::Mul;
+    AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .5f;
+    AnalogSourceData.m_OscillatorTab[1].m_ModulationType = SynthOX::ModulationType::Mix;
+    AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .5f;
+    AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Volume].m_BaseValue = .0f;
 	SynthOX::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
 	Synth.BindSource(AnalogSource);
-    Synth.NoteOn(0, 30, 1.f);
 
     DSoundTools::Init(hwnd);
 
@@ -207,11 +209,6 @@ int main(int, char**)
             VSlider(AnalogSourceData.m_ADSR_Sustain);
             VSlider(AnalogSourceData.m_ADSR_Release);
            
-            VSlider(AnalogSourceData.m_ADSR_Attack, false);
-            VSlider(AnalogSourceData.m_ADSR_Decay);
-            VSlider(AnalogSourceData.m_ADSR_Sustain);
-            VSlider(AnalogSourceData.m_ADSR_Release);
-           
             ImGui::PopID();
 
 //            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
@@ -220,19 +217,36 @@ int main(int, char**)
 //                counter++;
 
 //            ImGui::SameLine(); ImGui::Text("counter = %d", counter);
-            ImGui::SameLine(); Knob("Pan", AnalogSourceData.m_RightVolume, 0.f, 1.f, 32.f, 16);
-            AnalogSourceData.m_LeftVolume = 1.f-AnalogSourceData.m_RightVolume;
-            ImGui::SameLine(); Knob("Master", MasterVolume, 0.f, 1.f, 45.f, 16);
+            ImGui::SameLine(0, 15.f); Knob("Morph",  AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue, 0.f, 1.f, 32.f, 16);
+            ImGui::SameLine(0, 15.f); Knob("Squish", AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Squish].m_BaseValue, 0.f, 1.f, 32.f, 16);
+            ImGui::SameLine(0, 15.f); Knob("Drive",  AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue, 0.f, 1.f, 32.f, 16);
+            static float Pan = .5f;
+            ImGui::SameLine(0, 15.f); Knob("Pan", Pan, 0.f, 1.f, 32.f, 16);
+            AnalogSourceData.m_RightVolume = min(Pan * 2.f, 1.f);
+            AnalogSourceData.m_LeftVolume = min((1.f - Pan) * 2.f, 1.f);
+
+            ImGui::SameLine(0, 15.f); Knob("Master", MasterVolume, 0.f, 1.f, 45.f, 16);
             
+            auto Scope = AnalogSource.RenderScope(0, 100);
+            for(auto & X : Scope)
+                X = .5f*X + .5f;
+ImGui::PlotLines("", Scope.data(), Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
+
 
   //          ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
-		    DSoundTools::Render(Synth, MasterVolume);
+			if(ImGui::IsKeyPressed(VK_SPACE, false))
+                Synth.NoteOn(0, 69, 1.f);
+//			if(ImGui::IsKeyReleased(VK_SPACE))
+//                Synth.NoteOff(0, 30);
+		    
+            DSoundTools::Render(Synth, MasterVolume);
         }
 
-//        bool ShowDemo = true;
-//        ImGui::ShowDemoWindow(&ShowDemo);
+        bool ShowDemo = false;
+        if(ShowDemo)
+            ImGui::ShowDemoWindow(&ShowDemo);
 
         // Rendering
         ImGui::PopFont();
