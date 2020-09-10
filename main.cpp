@@ -227,19 +227,18 @@ int main(int, char**)
 
             ImGui::SameLine(0, 15.f); Knob("Master", MasterVolume, 0.f, 1.f, 45.f, 16);
             
-            auto Scope = AnalogSource.RenderScope(0, 100);
+            auto Scope = AnalogSource.RenderScope(0, 400);
             for(auto & X : Scope)
                 X = .5f*X + .5f;
-ImGui::PlotLines("", Scope.data(), Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
-
+            ImGui::PlotLines("", Scope.data(), Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
 
   //          ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
 			if(ImGui::IsKeyPressed(VK_SPACE, false))
                 Synth.NoteOn(0, 69, 1.f);
-//			if(ImGui::IsKeyReleased(VK_SPACE))
-//                Synth.NoteOff(0, 30);
+			if(ImGui::IsKeyReleased(VK_SPACE))
+                Synth.NoteOff(0, 69);
 		    
             DSoundTools::Render(Synth, MasterVolume);
         }

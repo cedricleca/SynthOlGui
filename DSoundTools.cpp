@@ -1,11 +1,12 @@
 
 #include "DSoundTools.h"
 #include <assert.h>
+#include <cmath>
 
 namespace DSoundTools
 {
 	static const unsigned int SO_PLAYBACK_FREQ = 44100;
-	static const unsigned int SO_PRIMARY_BUFFER_SIZE = SO_PLAYBACK_FREQ;
+	static const unsigned int SO_PRIMARY_BUFFER_SIZE = 9000 * 2 * 2;
 
 	IDirectSound*			g_DS = nullptr;
 	LPDIRECTSOUNDBUFFER		pDSB = nullptr;
@@ -56,52 +57,54 @@ namespace DSoundTools
 		pDSB->Unlock(P1, N1, P2, N2);
 	
 		pDSB->Play( 0, 0, DSBPLAY_LOOPING );	
-		OldPlayCursor = 0;
 	}
 
 	void Render(SynthOX::Synth & Synth, float MasterVolume)
 	{
 		DWORD PlayCursor, WriteCursor;
-		DWORD BytesToLock;
+
+		static const DWORD NbChunks = 4;
+		static const DWORD ChunkSize = SO_PRIMARY_BUFFER_SIZE / NbChunks;
+		assert(ChunkSize*NbChunks == SO_PRIMARY_BUFFER_SIZE);
 
 		pDSB->GetCurrentPosition(&PlayCursor, &WriteCursor);
 
-		BytesToLock = PlayCursor - OldPlayCursor;
-		if(PlayCursor <= OldPlayCursor)
-			BytesToLock = SO_PRIMARY_BUFFER_SIZE + BytesToLock;
-
-		/*
-		if(PlayCursor > OldPlayCursor)
-			BytesToLock = PlayCursor - OldPlayCursor;
-		else
-			BytesToLock = SO_PRIMARY_BUFFER_SIZE - (OldPlayCursor - PlayCursor);
-			*/
-
-		void *P[2];
-		DWORD N[2];
-		pDSB->Lock(OldPlayCursor, BytesToLock, &P[0], &N[0], &P[1], &N[1], 0);
-		OldPlayCursor = PlayCursor;
-
-		assert(N[0] + N[1] == BytesToLock);
-
-		auto Output = [&](int BufIdx) 
+		int CurChunk = PlayCursor / ChunkSize;
+		int OldChunk = OldPlayCursor / ChunkSize;
+		if(CurChunk != OldChunk)
 		{
-			N[BufIdx] /= 2;
-			Synth.Render(min(N[BufIdx]/2, 44100));
-			short * Buf = static_cast<short *>(P[BufIdx]);
-			for(unsigned int i = 0; i < N[BufIdx];)
-			{	
-				float Left, Right;
-				Synth.PopOutputVal(Left, Right);
-				Buf[i++] = short(Left * 32767.f * MasterVolume);
-				Buf[i++] = short(Right * 32767.f * MasterVolume);
+			DWORD Cursor = ((CurChunk+1) % NbChunks) * ChunkSize;
+			void *P[2];
+			DWORD N[2];
+			pDSB->Lock(Cursor, ChunkSize, &P[0], &N[0], &P[1], &N[1], 0);
+
+			if(N[0] + N[1] > 0)
+			{
+				auto Output = [&](int BufIdx) 
+				{
+					assert(N[BufIdx] % 4 == 0);
+					N[BufIdx] /= 2;
+					Synth.Render(min(N[BufIdx]/2, 44100));
+					short * Buf = static_cast<short *>(P[BufIdx]);
+					for(unsigned int i = 0; i < N[BufIdx];)
+					{
+						static float X = 0.f;
+						static float t = 0.f;
+						float Left, Right;
+						Synth.PopOutputVal(Left, Right);
+						Buf[i++] = short(Left * 32767.f * MasterVolume);
+						Buf[i++] = short(Right * 32767.f * MasterVolume);
+					}
+				};
+
+				Output(0);
+				Output(1);
 			}
-		};
+		
+			pDSB->Unlock(P[0], N[0], P[1], N[1]);
+		}
 
-		Output(0);
-		Output(1);
-
-		pDSB->Unlock(P[0], N[0], P[1], N[1]);
+		OldPlayCursor = PlayCursor;
 	}
 
 	void Release()
