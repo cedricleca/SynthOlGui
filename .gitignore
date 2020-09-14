@@ -37,9 +37,16 @@ x64/Debug/*
 *.app
 
 .vs/*
+RtMidi/doc/
+RtMidi/tests/
+RtMidi/msw/Debug/
+RtMidi/msw/Release/
+RtMidi/msw/Win32/Debug/
+RtMidi/msw/Win32/Release/
 *.db
 *.suo
 *.ipch
 *.db
 *.ini
 *.ini
+RtMidi/msw/rtmidilib.vcxproj.user

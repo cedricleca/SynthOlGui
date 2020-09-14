@@ -2,11 +2,13 @@
 #include "DSoundTools.h"
 #include <assert.h>
 #include <cmath>
+#include <iostream>
 
 namespace DSoundTools
 {
 	static const unsigned int SO_PLAYBACK_FREQ = 44100;
-	static const unsigned int SO_PRIMARY_BUFFER_SIZE = 9000 * 2 * 2;
+	//static const unsigned int SO_PRIMARY_BUFFER_SIZE = 9000 * 2 * 2;
+	static const unsigned int SO_PRIMARY_BUFFER_SIZE = (40000 * 2 * 2);
 
 	IDirectSound*			g_DS = nullptr;
 	LPDIRECTSOUNDBUFFER		pDSB = nullptr;
@@ -63,7 +65,7 @@ namespace DSoundTools
 	{
 		DWORD PlayCursor, WriteCursor;
 
-		static const DWORD NbChunks = 4;
+		static const DWORD NbChunks = 8;
 		static const DWORD ChunkSize = SO_PRIMARY_BUFFER_SIZE / NbChunks;
 		assert(ChunkSize*NbChunks == SO_PRIMARY_BUFFER_SIZE);
 
@@ -74,35 +76,34 @@ namespace DSoundTools
 		if(CurChunk != OldChunk)
 		{
 			DWORD Cursor = ((CurChunk+1) % NbChunks) * ChunkSize;
+			//std::cout << "pc="<<PlayCursor<<"   wc="<<WriteCursor<<"   Curchunk="<<Cursor<<" To "<<Cursor+ChunkSize<<'\n';
+
 			void *P[2];
 			DWORD N[2];
 			pDSB->Lock(Cursor, ChunkSize, &P[0], &N[0], &P[1], &N[1], 0);
 
-			if(N[0] + N[1] > 0)
+			auto Output = [&](int BufIdx) 
 			{
-				auto Output = [&](int BufIdx) 
+				assert(N[BufIdx] % 4 == 0);
+				N[BufIdx] /= 2;
+				Synth.Render(min(N[BufIdx]/2, 44100));
+				short * Buf = static_cast<short *>(P[BufIdx]);
+				for(unsigned int i = 0; i < N[BufIdx];)
 				{
-					assert(N[BufIdx] % 4 == 0);
-					N[BufIdx] /= 2;
-					Synth.Render(min(N[BufIdx]/2, 44100));
-					short * Buf = static_cast<short *>(P[BufIdx]);
-					for(unsigned int i = 0; i < N[BufIdx];)
-					{
-						static float X = 0.f;
-						static float t = 0.f;
-						float Left, Right;
-						Synth.PopOutputVal(Left, Right);
-						Buf[i++] = short(Left * 32767.f * MasterVolume);
-						Buf[i++] = short(Right * 32767.f * MasterVolume);
-					}
-				};
+					float Left, Right;
+					Synth.PopOutputVal(Left, Right);
+					Buf[i++] = short(Left * 32767.f * MasterVolume);
+					Buf[i++] = short(Right * 32767.f * MasterVolume);
+				}
+			};
 
-				Output(0);
-				Output(1);
-			}
+			Output(0);
+			Output(1);
 		
 			pDSB->Unlock(P[0], N[0], P[1], N[1]);
 		}
+		//else
+		//	std::cout << "Skip\n";
 
 		OldPlayCursor = PlayCursor;
 	}

@@ -13,6 +13,7 @@
 #include <math.h>
 #include "DSoundTools.h"
 #include "SynthOX/SynthOX.h"
+#include "RtMidi/RtMidi.h"
 
 // Data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -89,6 +90,32 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 	return is_active;
 }
 
+SynthOX::Synth Synth;
+
+void MIDICallback( double deltatime, std::vector< unsigned char > *message, void *userData )
+{
+    unsigned int nBytes = message->size();
+    for ( unsigned int i=0; i<nBytes; i++ )
+        std::cout << "Byte " << i << " = " << (int)message->at(i) << ", ";
+    if ( nBytes > 0 )
+        std::cout << "stamp = " << deltatime << std::endl;
+
+    if(nBytes > 0)
+    {
+        auto Message = *message;
+        switch(Message[0])
+        {
+        case 144:
+            if(Message[2] == 0)
+                Synth.NoteOff(0, Message[1]);
+            else
+                Synth.NoteOn(0, Message[1], std::powf( float(Message[2]) / 127.f, .5f) );
+
+            break;
+        }
+    }
+}
+
 // Main code
 int main(int, char**)
 {
@@ -106,7 +133,6 @@ int main(int, char**)
         return 1;
     }
 
-	SynthOX::Synth Synth;
 	SynthOX::AnalogSourceData AnalogSourceData;
     AnalogSourceData.m_LeftVolume = .7f;
     AnalogSourceData.m_RightVolume = .7f;
@@ -121,6 +147,21 @@ int main(int, char**)
     AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Volume].m_BaseValue = .0f;
 	SynthOX::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
 	Synth.BindSource(AnalogSource);
+
+    RtMidiIn midiin;
+    unsigned int nPorts = midiin.getPortCount();
+    if ( nPorts == 0 ) 
+    {
+        std::cout << "No MIDI ports available!\n";
+    }
+    else
+    {
+        midiin.openPort( 0 );
+        std::cout << midiin.getPortName( 0 ) << '\n';
+
+        midiin.setCallback( &MIDICallback );
+        midiin.ignoreTypes( false, false, false );
+    }
 
     DSoundTools::Init(hwnd);
 
@@ -219,7 +260,7 @@ int main(int, char**)
 //            ImGui::SameLine(); ImGui::Text("counter = %d", counter);
             ImGui::SameLine(0, 15.f); Knob("Morph",  AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue, 0.f, 1.f, 32.f, 16);
             ImGui::SameLine(0, 15.f); Knob("Squish", AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Squish].m_BaseValue, 0.f, 1.f, 32.f, 16);
-            ImGui::SameLine(0, 15.f); Knob("Drive",  AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue, 0.f, 1.f, 32.f, 16);
+            ImGui::SameLine(0, 15.f); Knob("Crank",  AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue, 0.f, 1.f, 32.f, 16);
             static float Pan = .5f;
             ImGui::SameLine(0, 15.f); Knob("Pan", Pan, 0.f, 1.f, 32.f, 16);
             AnalogSourceData.m_RightVolume = min(Pan * 2.f, 1.f);
@@ -227,7 +268,7 @@ int main(int, char**)
 
             ImGui::SameLine(0, 15.f); Knob("Master", MasterVolume, 0.f, 1.f, 45.f, 16);
             
-            auto Scope = AnalogSource.RenderScope(0, 400);
+            auto Scope = AnalogSource.RenderScope(0, 100);
             for(auto & X : Scope)
                 X = .5f*X + .5f;
             ImGui::PlotLines("", Scope.data(), Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
@@ -235,11 +276,6 @@ int main(int, char**)
   //          ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
-			if(ImGui::IsKeyPressed(VK_SPACE, false))
-                Synth.NoteOn(0, 69, 1.f);
-			if(ImGui::IsKeyReleased(VK_SPACE))
-                Synth.NoteOff(0, 69);
-		    
             DSoundTools::Render(Synth, MasterVolume);
         }
 
