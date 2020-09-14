@@ -43,6 +43,8 @@ RtMidi/msw/Debug/
 RtMidi/msw/Release/
 RtMidi/msw/Win32/Debug/
 RtMidi/msw/Win32/Release/
+RtMidi/msw/x64/Debug/
+RtMidi/msw/x64/Release/
 *.db
 *.suo
 *.ipch

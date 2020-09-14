@@ -94,7 +94,7 @@ SynthOX::Synth Synth;
 
 void MIDICallback( double deltatime, std::vector< unsigned char > *message, void *userData )
 {
-    unsigned int nBytes = message->size();
+    unsigned int nBytes = (unsigned int)message->size();
     for ( unsigned int i=0; i<nBytes; i++ )
         std::cout << "Byte " << i << " = " << (int)message->at(i) << ", ";
     if ( nBytes > 0 )
@@ -271,7 +271,7 @@ int main(int, char**)
             auto Scope = AnalogSource.RenderScope(0, 100);
             for(auto & X : Scope)
                 X = .5f*X + .5f;
-            ImGui::PlotLines("", Scope.data(), Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
+            ImGui::PlotLines("", Scope.data(), (int)Scope.size(), 0, nullptr, 0.0f, 1.0f, ImVec2(0, 180.0f));
 
   //          ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
