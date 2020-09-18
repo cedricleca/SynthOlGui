@@ -30,11 +30,11 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static const int WPosX = 100;
 static const int WPosY = 100;
-static const int WSizeW = 900;
-static const int WSizeH = 140;
+static const int WSizeW = 1200;
+static const int WSizeH = 160;
 static const float PI = 3.1415926f;
 
-bool Knob(const char * label, float & value, float minv, float maxv, float Size = 36.f, int NbSegments = 16)
+bool Knob(const char * label, float & value, float minv, float maxv, float Size = 36.f, int NbSegments = 16, bool bCentered=false)
 {	
 	const ImGuiStyle& style = ImGui::GetStyle();
 	
@@ -54,7 +54,10 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 		const float alpha2 = std::clamp(atan2f(mp.x - center.x, center.y - mp.y) + PI, gamma, 2.0f * PI - gamma);
 		value = (0.5f * (alpha2 - gamma) / (PI - gamma)) * (maxv - minv) + minv;
 	}
-	
+
+	if(ImGui::IsItemHovered())
+		ImGui::SetTooltip("%8.4g", value);
+
 	const ImU32 col32 = ImGui::GetColorU32(is_active ? ImGuiCol_FrameBgActive : ImGui::IsItemHovered() ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
 	const ImU32 col32line = ImGui::GetColorU32(ImGuiCol_SliderGrabActive); 
 	const ImU32 col32text = ImGui::GetColorU32(ImGuiCol_Text);
@@ -65,16 +68,10 @@ bool Knob(const char * label, float & value, float minv, float maxv, float Size 
 		return {-sinf(angle)*rad + center.x, cosf(angle)*rad + center.y};
 	};
 
-	if(value > 0.f)
-	{
-		float th = gamma;
-		const float step = (alpha - gamma) / float(NbSegments);
-		for(int i = 0; i < NbSegments; i++, th += step)
-			draw_list->AddLine(PointOnRadius(th, radius + 2.f), PointOnRadius(th + step + .02f, radius + 2.f), ImGui::GetColorU32(ImVec4(.6f, .15f, .11f, 1.f)), 4.f);
-		th = gamma;
-		for(int i = 0; i < NbSegments; i++, th += step)
-			draw_list->AddLine(PointOnRadius(th, radius + 1.f), PointOnRadius(th + step + .02f, radius + 1.f), ImGui::GetColorU32(ImVec4(9.f, .4f, .2f, 1.f)), 2.f);
-	}
+	float th = bCentered ? PI : gamma;
+	const float step = (alpha - (bCentered ? PI : gamma)) / float(NbSegments);
+	for(int i = 0; i < NbSegments; i++, th += step)
+		draw_list->AddLine(PointOnRadius(th, radius + 1.f), PointOnRadius(th + step + (value >= 0.f ? .02f : -.02f), radius + 1.f), ImGui::GetColorU32(ImVec4(9.f, .4f, .2f, 1.f)), 2.f);
 
 	draw_list->AddCircleFilled(center, radius, col32, NbSegments);
 
@@ -140,11 +137,25 @@ int main(int, char**)
 	AnalogSourceData.m_ADSR_Decay = .1f;
 	AnalogSourceData.m_ADSR_Sustain = .7f;
 	AnalogSourceData.m_ADSR_Release = .3f;
+
 	AnalogSourceData.m_OscillatorTab[0].m_ModulationType = SynthOX::ModulationType::Mix;
 	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .5f;
-	AnalogSourceData.m_OscillatorTab[1].m_ModulationType = SynthOX::ModulationType::Mul;
-	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .5f;
+	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Squish].m_BaseValue = .5f;
+	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue = .707f;
+	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Tune].m_BaseValue = .0f;
+	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Decat].m_BaseValue = .0f;
+	
+	AnalogSourceData.m_OscillatorTab[1].m_ModulationType = SynthOX::ModulationType::Mix;
+	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .41f;
+	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Squish].m_BaseValue = .5f;
+	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue = .74f;
 	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Volume].m_BaseValue = .5f;
+	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Tune].m_BaseValue = .1f;
+	AnalogSourceData.m_OscillatorTab[1].m_LFOTab[(int)SynthOX::LFODest::Decat].m_BaseValue = .0f;
+	
+	AnalogSourceData.m_PolyphonyMode = SynthOX::PolyphonyMode::Portamento;
+	AnalogSourceData.m_PortamentoTime = .2f;
+	
 	SynthOX::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
 	Synth.BindSource(AnalogSource);
 
@@ -224,7 +235,7 @@ int main(int, char**)
 		{
 			static float MasterVolume = .5f;
 
-			ImGui::SetNextWindowSize({WSizeW, WSizeH});
+			ImGui::SetNextWindowSize({WSizeW, 2*WSizeH});
 			ImGui::SetNextWindowPos({0.f, 0.f});
 
 			bool bDummy = false;
@@ -249,12 +260,13 @@ int main(int, char**)
 				Knob("Morph",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue, 0.f, 1.f, KnobSize, 16);
 				ImGui::SameLine(0, 15.f); Knob("Squish", AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Squish].m_BaseValue, 0.f, 1.f, KnobSize, 16);
 				ImGui::SameLine(0, 15.f); Knob("Crank",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Distort].m_BaseValue, 0.f, 1.f, KnobSize, 16);
-				ImGui::SameLine(0, 15.f); Knob("Tune",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Tune].m_BaseValue, 0.f, 1.f, KnobSize, 16);
+				ImGui::SameLine(0, 15.f); Knob("Tune",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Tune].m_BaseValue, -1.f, 1.f, KnobSize, 16, true);
+				ImGui::SameLine(0, 15.f); Knob("Decat",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Decat].m_BaseValue, 0.f, 1.f, KnobSize, 16);
 				ImGui::SameLine(0, 15.f); Knob("Amp",  AnalogSourceData.m_OscillatorTab[Osc].m_LFOTab[(int)SynthOX::LFODest::Volume].m_BaseValue, 0.f, 1.f, KnobSize, 16);
 				
-				ImGui::SameLine(0, 15.f); Knob("Note", NoteOffset[Osc], -12.f, 12.f, KnobSize, 16);
+				ImGui::SameLine(0, 15.f); Knob("Note", NoteOffset[Osc], -12.f, 12.f, KnobSize, 16, true);
 				AnalogSourceData.m_OscillatorTab[Osc].m_NoteOffset = char(NoteOffset[Osc]);
-				ImGui::SameLine(0, 15.f); Knob("Oct", OctaveOffset[Osc], -4.f, 4.f, KnobSize, 16);
+				ImGui::SameLine(0, 15.f); Knob("Oct", OctaveOffset[Osc], -4.f, 4.f, KnobSize, 16, true);
 				AnalogSourceData.m_OscillatorTab[Osc].m_OctaveOffset = char(OctaveOffset[Osc]);
 
 				auto Scope = AnalogSource.RenderScope(Osc, 100);
@@ -263,13 +275,25 @@ int main(int, char**)
 
 				if(Osc == 1) 
 				{ 
-					ImGui::SameLine(0, 15.f); ImGui::Checkbox("Mul", &bMul); 
+					ImGui::SameLine(0, 15.f); ImGui::Checkbox("Mod", &bMul); 
 					AnalogSourceData.m_OscillatorTab[1].m_ModulationType = bMul ? SynthOX::ModulationType::Mul : SynthOX::ModulationType::Mix;
 				}
 
 				ImGui::PopID();
 			};
-
+			
+			ImGui::BeginGroup();
+			static int PolyMode = 0;
+			ImGui::SetNextItemWidth(100.f);
+	        ImGui::Combo("PolyMode", &PolyMode, "Poly\0Arpeggio\0Portamento\0\0");
+			AnalogSourceData.m_PolyphonyMode = SynthOX::PolyphonyMode(PolyMode);
+			ImGui::SameLine(0, 15.f); Knob("Port", AnalogSourceData.m_PortamentoTime, 0.f, 12.f, KnobSize*.8f, 16);
+//			ImGui::SameLine(0, 15.f); Knob("Arp", AnalogSourceData.m_PortamentoTime, 0.f, 12.f, KnobSize*.8f, 16);
+//			else if(AnalogSourceData.m_PolyphonyMode == SynthOX::PolyphonyMode::Portamento)
+//				ImGui::SameLine(0, 15.f); Knob("Speed", AnalogSourceData., 0.f, 12.f, KnobSize*.8f, 16);
+			ImGui::EndGroup();
+			
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.f);
 			ImGui::BeginGroup();
 			OscillatorUI(0);
 			OscillatorUI(1);
@@ -283,10 +307,10 @@ int main(int, char**)
 			VSlider(AnalogSourceData.m_ADSR_Release);           
 			ImGui::PopID();
 
-			static float Pan = .5f;
-			ImGui::SameLine(0, 15.f); Knob("Pan", Pan, 0.f, 1.f, KnobSize, 16);
-			AnalogSourceData.m_RightVolume = min(Pan * 2.f, 1.f);
-			AnalogSourceData.m_LeftVolume = min((1.f - Pan) * 2.f, 1.f);
+			static float Pan = .0f;
+			ImGui::SameLine(0, 15.f); Knob("Pan", Pan, -1.f, 1.f, KnobSize, 16, true);
+			AnalogSourceData.m_RightVolume = std::clamp(1.f + Pan, .0f, 1.f);
+			AnalogSourceData.m_LeftVolume = std::clamp(1.f - Pan, .0f, 1.f);
 
 			ImGui::SameLine(0, 15.f); Knob("Master", MasterVolume, 0.f, 1.f, 64.f, 24);
 			
