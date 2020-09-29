@@ -30,7 +30,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static const int WPosX = 100;
 static const int WPosY = 100;
-static const int WSizeW = 1200;
+static const int WSizeW = 1600;
 static const int WSizeH = 160;
 static const float PI = 3.1415926f;
 
@@ -102,12 +102,15 @@ void MIDICallback( double deltatime, std::vector< unsigned char > *message, void
 		auto Message = *message;
 		switch(Message[0])
 		{
-		case 144:
+		case 144: // Note On/Off
 			if(Message[2] == 0)
 				Synth.NoteOff(0, Message[1]);
 			else
 				Synth.NoteOn(0, Message[1], std::powf( float(Message[2]) / 127.f, .5f) );
 
+			break;
+		case 224: // PitchBend
+			Synth.m_PitchBend = float(Message[2] - 64) / 64.f;
 			break;
 		}
 	}
@@ -133,10 +136,14 @@ int main(int, char**)
 	SynthOX::AnalogSourceData AnalogSourceData;
 	AnalogSourceData.m_LeftVolume = .7f;
 	AnalogSourceData.m_RightVolume = .7f;
-	AnalogSourceData.m_ADSR_Attack = .1f;
-	AnalogSourceData.m_ADSR_Decay = .1f;
-	AnalogSourceData.m_ADSR_Sustain = .7f;
-	AnalogSourceData.m_ADSR_Release = .3f;
+	AnalogSourceData.m_AmpADSR.m_Attack = .1f;
+	AnalogSourceData.m_AmpADSR.m_Decay = .1f;
+	AnalogSourceData.m_AmpADSR.m_Sustain = .7f;
+	AnalogSourceData.m_AmpADSR.m_Release = .3f;
+	AnalogSourceData.m_FilterADSR.m_Attack = .1f;
+	AnalogSourceData.m_FilterADSR.m_Decay = .1f;
+	AnalogSourceData.m_FilterADSR.m_Sustain = .7f;
+	AnalogSourceData.m_FilterADSR.m_Release = .3f;
 
 	AnalogSourceData.m_OscillatorTab[0].m_ModulationType = SynthOX::ModulationType::Mix;
 	AnalogSourceData.m_OscillatorTab[0].m_LFOTab[(int)SynthOX::LFODest::Morph].m_BaseValue = .5f;
@@ -155,6 +162,7 @@ int main(int, char**)
 	
 	AnalogSourceData.m_PolyphonyMode = SynthOX::PolyphonyMode::Portamento;
 	AnalogSourceData.m_PortamentoTime = .2f;
+	AnalogSourceData.m_ArpeggioPeriod = .2f;
 	
 	SynthOX::AnalogSource AnalogSource(&Synth.m_OutBuf, 0, &AnalogSourceData);
 	Synth.BindSource(AnalogSource);
@@ -246,7 +254,7 @@ int main(int, char**)
 			{
 				ImGui::PushID(Id++);
 				if(SameLine)	ImGui::SameLine(); 
-				ImGui::VSliderFloat("##v", {10.f, 120.0f}, &Val, 0.0f, 1.0f, "");  
+				ImGui::VSliderFloat("##v", {10.f, 120.0f}, &Val, 0.0f, 1.f, "");  
 				ImGui::PopID();
 			};
 
@@ -254,6 +262,7 @@ int main(int, char**)
 			static float NoteOffset[2];
 			static float OctaveOffset[2];
 			static bool bMul = false;
+
 			auto OscillatorUI = [&](int Osc)
 			{
 				ImGui::PushID(Osc);
@@ -288,6 +297,7 @@ int main(int, char**)
 	        ImGui::Combo("PolyMode", &PolyMode, "Poly\0Arpeggio\0Portamento\0\0");
 			AnalogSourceData.m_PolyphonyMode = SynthOX::PolyphonyMode(PolyMode);
 			ImGui::SameLine(0, 15.f); Knob("Port", AnalogSourceData.m_PortamentoTime, 0.f, 12.f, KnobSize*.8f, 16);
+			ImGui::SameLine(0, 15.f); Knob("Arp", AnalogSourceData.m_ArpeggioPeriod, 0.f, 1.f, KnobSize*.8f, 16);
 //			ImGui::SameLine(0, 15.f); Knob("Arp", AnalogSourceData.m_PortamentoTime, 0.f, 12.f, KnobSize*.8f, 16);
 //			else if(AnalogSourceData.m_PolyphonyMode == SynthOX::PolyphonyMode::Portamento)
 //				ImGui::SameLine(0, 15.f); Knob("Speed", AnalogSourceData., 0.f, 12.f, KnobSize*.8f, 16);
@@ -300,11 +310,27 @@ int main(int, char**)
 			ImGui::EndGroup();
 			
 			ImGui::SameLine();
-			ImGui::PushID("set1");
-			VSlider(AnalogSourceData.m_ADSR_Attack, false);
-			VSlider(AnalogSourceData.m_ADSR_Decay);
-			VSlider(AnalogSourceData.m_ADSR_Sustain);
-			VSlider(AnalogSourceData.m_ADSR_Release);           
+			ImGui::BeginGroup();
+			ImGui::PushID("FilterADSR");
+			VSlider(AnalogSourceData.m_FilterADSR.m_Attack);
+			VSlider(AnalogSourceData.m_FilterADSR.m_Decay);
+			VSlider(AnalogSourceData.m_FilterADSR.m_Sustain);
+			VSlider(AnalogSourceData.m_FilterADSR.m_Release, true);           
+			ImGui::SameLine(0, 15.f); Knob("F-Amount", AnalogSourceData.m_FilterDrive, 0.f, 1.f, KnobSize, 16);
+			ImGui::SameLine(0, 15.f); Knob("F-Freq", AnalogSourceData.m_FilterFreq, 0.f, .5f, KnobSize, 16);
+			ImGui::SameLine(0, 15.f); Knob("F-Reso", AnalogSourceData.m_FilterReso, 0.f, 1.f, KnobSize, 16);
+			ImGui::SameLine(0, 15.f); ImGui::Checkbox("Inv", &AnalogSourceData.m_InvFilterEnv); 
+			ImGui::PopID();
+			ImGui::EndGroup();
+
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.f);
+
+			ImGui::PushID("AmpADSR");
+			VSlider(AnalogSourceData.m_AmpADSR.m_Attack, false);
+			VSlider(AnalogSourceData.m_AmpADSR.m_Decay);
+			VSlider(AnalogSourceData.m_AmpADSR.m_Sustain);
+			VSlider(AnalogSourceData.m_AmpADSR.m_Release, true);           
 			ImGui::PopID();
 
 			static float Pan = .0f;
@@ -313,6 +339,13 @@ int main(int, char**)
 			AnalogSourceData.m_LeftVolume = std::clamp(1.f - Pan, .0f, 1.f);
 
 			ImGui::SameLine(0, 15.f); Knob("Master", MasterVolume, 0.f, 1.f, 64.f, 24);
+
+			{
+				std::array<float, 1000> X;
+				for(int i = 0; i < 1000; i++)
+					X[i] = DSoundTools::Oscillo[(DSoundTools::OscilloCursor + i) % DSoundTools::Oscillo.size()];
+				ImGui::SameLine(0, 15.f); ImGui::PlotLines("", X.data(), (int)X.size(), 0, nullptr, -1.0f, 1.0f, ImVec2(420.f, 120.0f));
+			}
 			
 			ImGui::End();
 

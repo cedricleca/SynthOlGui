@@ -15,6 +15,9 @@ namespace DSoundTools
 	DWORD					OldPlayCursor;
 	char *					JKevOutBuf = nullptr;
 
+	std::array<float, 1000> Oscillo;
+	int OscilloCursor = 0;
+
 	void Init(HWND  hWnd)
 	{
 		// Init DSound_____________
@@ -94,6 +97,9 @@ namespace DSoundTools
 					Synth.PopOutputVal(Left, Right);
 					Buf[i++] = short(Left * 32767.f * MasterVolume);
 					Buf[i++] = short(Right * 32767.f * MasterVolume);
+
+					Oscillo[OscilloCursor] = Left * MasterVolume;
+					OscilloCursor = (OscilloCursor + 1) % Oscillo.size();
 				}
 			};
 
