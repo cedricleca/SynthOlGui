@@ -13,7 +13,6 @@ namespace DSoundTools
 	IDirectSound*			g_DS = nullptr;
 	LPDIRECTSOUNDBUFFER		pDSB = nullptr;
 	DWORD					OldPlayCursor;
-	char *					JKevOutBuf = nullptr;
 
 	std::array<float, 1000> Oscillo;
 	int OscilloCursor = 0;
