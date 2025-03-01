@@ -175,11 +175,19 @@ int main(int, char**)
 	}
 	else
 	{
-		midiin.openPort( 1 );
-		std::cout << midiin.getPortName( 1 ) << '\n';
+		try
+		{
+			midiin.openPort( 0 );
+			std::cout << midiin.getPortName( 1 ) << '\n';
 
-		midiin.setCallback( &MIDICallback );
-		midiin.ignoreTypes( false, false, false );
+			midiin.setCallback( &MIDICallback );
+			midiin.ignoreTypes( false, false, false );
+		}
+		catch(std::exception e)
+		{
+			std::cout << e.what();
+			return 1;
+		}
 	}
 
 	DSoundTools::Init(hwnd);
@@ -344,7 +352,7 @@ int main(int, char**)
 				std::array<float, 1000> X;
 				for(int i = 0; i < 1000; i++)
 					X[i] = DSoundTools::Oscillo[(DSoundTools::OscilloCursor + i) % DSoundTools::Oscillo.size()];
-				ImGui::SameLine(0, 15.f); ImGui::PlotLines("", X.data(), (int)X.size(), 0, nullptr, -1.0f, 1.0f, ImVec2(420.f, 120.0f));
+				ImGui::SameLine(0, 15.f); ImGui::PlotLines("Osc", X.data(), (int)X.size(), 0, nullptr, -1.0f, 1.0f, ImVec2(420.f, 120.0f));
 			}
 			
 			ImGui::End();
