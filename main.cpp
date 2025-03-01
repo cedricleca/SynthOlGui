@@ -175,8 +175,8 @@ int main(int, char**)
 	}
 	else
 	{
-		midiin.openPort( 0 );
-		std::cout << midiin.getPortName( 0 ) << '\n';
+		midiin.openPort( 1 );
+		std::cout << midiin.getPortName( 1 ) << '\n';
 
 		midiin.setCallback( &MIDICallback );
 		midiin.ignoreTypes( false, false, false );
